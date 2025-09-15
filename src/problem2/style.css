@@ -1,8 +1,50 @@
 body {
   display: flex;
-  flex-direction: row;
-  align-items: center;
   justify-content: center;
-  min-width: 360px;
+  align-items: center;
+  min-height: 100vh;
   font-family: Arial, Helvetica, sans-serif;
+  background: #f4f4f9;
+}
+
+form {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+form h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+label {
+  margin: 8px 0 4px;
+  font-size: 14px;
+}
+
+input, select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #4cafef;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2196f3;
 }

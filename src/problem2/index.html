@@ -1,27 +1,28 @@
 <html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fancy Form</title>
+    <link href="style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <form id="swap-form" onsubmit="return false">
+      <h2>Token Swap</h2>
 
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fancy Form</title>
+      <label for="input-amount">Amount to send</label>
+      <input id="input-amount" type="number" min="0" placeholder="Enter amount" />
 
-  <!-- You may add more stuff here -->
-  <link href="style.css" rel="stylesheet" />
-</head>
+      <label for="from-token">From</label>
+      <select id="from-token"></select>
 
-<body>
+      <label for="to-token">To</label>
+      <select id="to-token"></select>
 
-  <!-- You may reorganise the whole HTML, as long as your form achieves the same effect. -->
-  <form onsubmit="return !1">
-    <h5>Swap</h5>
-    <label for="input-amount">Amount to send</label>
-    <input id="input-amount" />
+      <label for="output-amount">Amount to receive</label>
+      <input id="output-amount" readonly />
 
-    <label for="output-amount">Amount to receive</label>
-    <input id="output-amount" />
+      <button id="swap-btn">CONFIRM SWAP</button>
+    </form>
 
-    <button>CONFIRM SWAP</button>
-  </form>
-  <script src="script.js"></script>
-</body>
-
+    <script src="script.js"></script>
+  </body>
 </html>
