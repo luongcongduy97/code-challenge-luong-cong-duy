@@ -12,6 +12,35 @@ const rateEl = document.getElementById("rate");
 const swapBtn = document.getElementById("swap-btn");
 const toast = document.getElementById("toast");
 
+// NEW: icon elements
+const fromIcon = document.getElementById("from-icon");
+const toIcon = document.getElementById("to-icon");
+
+// helper: make icon URL
+function iconUrl(sym) {
+  // symbols in repo are uppercase, 1:1 file name
+  return ICON_URL + encodeURIComponent(sym) + '.svg';
+}
+
+// helper: inline SVG fallback (when image 404)
+function fallbackIcon(sym) {
+  const t = (sym || "?").slice(0, 4);
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>
+      <rect width='100%' height='100%' fill='#eef2ff'/>
+      <text x='50%' y='54%' font-family='Arial' font-size='10' text-anchor='middle' fill='#334155'>${t}</text>
+    </svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+// NEW: set image src with graceful fallback
+function setIcon(imgEl, symbol) {
+  const url = iconUrl(symbol);
+  imgEl.onerror = () => { imgEL.src = fallbackIcon(symbol); };
+  imgEl.src = url;
+  imgEl.alt = symbol + "icon";
+}
+
 // --- Load tokens and prices ---
 async function loadTokens() {
   try {
@@ -123,7 +152,14 @@ function calculate() {
   rateEl.textContent = `Rate: 1 ${from} ≈ ${(fromPrice / toPrice).toFixed(6)} ${to}}`;
 }
 
+function updateIcons() {
+  const f = fromTokenSelect.value;
+  const t = toTokenSelect.value;
+  if (f) setIcon(fromIcon, f);
+  if (t) setIcon(toIcon, t);
+}
 function updateAll() {
+  updateIcons();
   validate();
   calculate();
 }
