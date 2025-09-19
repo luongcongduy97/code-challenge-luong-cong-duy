@@ -3,38 +3,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Fancy Form</title>
     <link href="style.css" rel="stylesheet" />
+    <!-- Alpine.js (lightweight, no build) -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   </head>
   <body>
-    <form id="swap-form" onsubmit="return false" aria-label="Token swap form">
+    <form id="swap-form" onsubmit="return false" x-data="swapApp" x-init="init()" aria-label="Token swap form">
       <h2 class="title">Token Swap</h2>
 
       <!-- FORM card -->
       <div class="swap-card">
         <div class="card-header">
           <span>From</span>
-          <button type="button" id="max-btn" class="link-btn" aria-label="Use max balance">Max</button>
+          <button type="button" id="max-btn" class="link-btn" @click="useMax" aria-label="Use max balance">Max</button>
         </div>
 
         <div class="row">
           <div class="amount-box">
-            <input id="input-amount" type="number" inputmode="decimal" min="0" step="any" placeholder="0.0" aria-describedby="amt-error" />
+            <input id="input-amount" type="number" inputmode="decimal" min="0" step="any" placeholder="0.0" aria-describedby="amt-error"
+                   x-model.trim="amount" @input="update()" :class="{'invalid': amtError}" />
           </div>
 
           <div class="token-box">
-            <img id="from-icon" class="token-icon" alt="">
-            <select id="from-token" aria-label="From token"></select>
+            <img id="from-icon" class="token-icon" :src="icon(from)" :alt="from + ' icon'">
+            <select id="from-token" aria-label="From token" x-model="from" @change="update()">
+              <template x-for="s in symbols" :key="s">
+                <option :value="s" x-text="s"></option>
+              </template>
+            </select>
           </div>
         </div>
 
-        <small id="amt-error" class="error hidden"></small>
+        <small id="amt-error" class="error" x-show="amtError" x-text="amtError"></small>
         <div class="subline">
-          <span id="from-balance" class="muted">Balance: -</span>
-          <span id="from-usd" class="muted">≈ —</span>
+          <span id="from-balance" class="muted" x-text="`Balance: ${fmt6(balance(from))} ${from||''}`">Balance: -</span>
+          <span id="from-usd" class="muted" x-text="fromUsdHint()">≈ —</span>
         </div>
       </div>
 
       <!-- swap direction -->
-      <button type="button" id="flip-btn" class="flip-btn" aria-label="Swap direction">⇅</button>
+      <button type="button" id="flip-btn" class="flip-btn" @click="flip" aria-label="Swap direction">⇅</button>
 
       <!-- TO card -->
       <div class="swap-card">
@@ -44,32 +51,36 @@
 
         <div class="row">
           <div class="amount-box">
-            <input id="output-amount" readonly placeholder="0.0" />
+            <input id="output-amount" readonly placeholder="0.0" :value="resultDisplay" />
           </div>
 
           <div class="token-box">
-            <img id="to-icon" class="token-icon" alt="">
-            <select id="to-token" aria-label="To token"></select>
+            <img id="to-icon" class="token-icon" :src="icon(to)" :alt="to + ' icon'">
+            <select id="to-token" aria-label="To token" x-model="to" @change="update()">
+              <template x-for="s in symbols" :key="s">
+                <option :value="s" x-text="s"></option>
+              </template>
+            </select>
           </div>
         </div>
 
         <div class="subline">
-          <span id="to-usd" class="muted">≈ —</span>
+          <span id="to-usd" class="muted" x-text="toUsdHint()">≈ —</span>
         </div>
       </div>
 
-      <div id="global-error" class="error hidden" role="alert"></div>
+      <div id="global-error" class="error" x-show="globalError" x-text="globalError" role="alert"></div>
 
       <div class="info-line">
-        <span id="rate">Rate: —</span>
+        <span id="rate" x-text="rateLine">Rate: —</span>
         <span class="muted">Fee (mock): 0.30%</span>
       </div>
 
-      <button id="swap-btn" type="button" disabled>CONFIRM SWAP</button>
-      <div id="toast" class="toast hidden" role="status">Swap submitted!</div>
+      <button id="swap-btn" type="button" :disabled="!canSubmit" @click="submit">CONFIRM SWAP</button>
+      <div id="toast" class="toast" x-show="toastMsg" x-text="toastMsg" role="status"></div>
 
       <!-- skeleton overlay while loading -->
-      <div id="loading" class="skeleton hidden" aria-hidden="true"></div>
+      <div id="loading" class="skeleton" x-show="loading" aria-hidden="true"></div>
     </form>
 
     <script src="script.js"></script>

@@ -1,278 +1,138 @@
-const API_URL = "https://interview.switcheo.com/prices.json";
-const ICON_URL = "https://raw.githubusercontent.com/Switcheo/token-icons/main/tokens/";
+document.addEventListener('alpine:init', () => {
+  Alpine.data('swapApp', () => ({
+    API_URL: "https://interview.switcheo.com/prices.json",
+    ICON_BASE: "https://raw.githubusercontent.com/Switcheo/token-icons/main/tokens/",
+    prices: {},
+    symbols: [],
+    from: "",
+    to: "",
+    amount: "",
+    result: "",
+    rateLine: "Rate: —",
+    amtError: "",
+    globalError: "",
+    toastMsg: "",
+    loading: false,
+    canSubmit: false,
+    _balances: {}, // mock balances for UX (can be removed)
 
-let prices = {};
-let balances = {}; // mock balances for UX (can be removed)
+    async init() {
+      this.loading = true;
+      try {
+        const res = await fetch(this.API_URL);
+        const data = await res.json();
+        data.forEach(it => this.prices[it.currency] = it.price);
 
-// Elements
-const fromTokenSelect = document.getElementById("from-token");
-const toTokenSelect = document.getElementById("to-token");
-const inputAmount = document.getElementById("input-amount");
-const outputAmount = document.getElementById("output-amount");
-const amtError = document.getElementById("amt-error");
-const globalError = document.getElementById("global-error");
-const rateEl = document.getElementById("rate");
-const swapBtn = document.getElementById("swap-btn");
-const toast = document.getElementById("toast");
-const fromIcon = document.getElementById("from-icon");
-const toIcon = document.getElementById("to-icon");
-const fromUsdEl = document.getElementById("from-usd");
-const toUsdEl = document.getElementById("to-usd");
-const fromBalEl = document.getElementById("from-balance");
-const maxBtn = document.getElementById("max-btn");
-const flipBtn = document.getElementById("flip-btn");
-const loadingOverlay = document.getElementById("loading");
+        this.symbols = Object.keys(this.prices).sort();
 
-// --- until
-const fmt6 = n => Number(n).toFixed(6);
-const fmt2 = n => Number(n).toFixed(2);
-const save = () => localStorage.setItem("swap.sel", JSON.stringify({f: fromTokenSelect.value, t: toTokenSelect.value}));
-const load = () => {
-  try { 
-    return JSON.parse(localStorage.getItem("swap.sel")||"{}"); 
-  } catch { return {}; } 
-};
+        // mock balances
+        this.symbols.forEach(s => this._balances[s] = 100 + Math.random()*50);
 
-// helper: make icon URL
-function iconUrl(sym) {
-  // symbols in repo are uppercase, 1:1 file name
-  return ICON_URL + encodeURIComponent(sym) + '.svg';
-}
+        // restore or default
+        const saved = JSON.parse(localStorage.getItem("swap.sel")||"{}");
+        this.from = (saved.f && this.prices[saved.f]) ? saved.f : (this.prices.ETH ? "ETH" : this.symbols[0] || "");
+        this.to   = (saved.t && this.prices[saved.t]) ? saved.t : (this.prices.USDC ? "USDC" : this.symbols[1] || "");
 
-// helper: inline SVG fallback (when image 404)
-function fallbackIcon(sym){
-  const t = (sym||"?").slice(0,4);
-  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>
-    <rect width='100%' height='100%' fill='#eef2ff'/>
-    <text x='50%' y='55%' font-family='Arial' font-size='10' text-anchor='middle' fill='#334155'>${t}</text>
-  </svg>`;
-  return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
-}
+        this.update();
+      } catch (e) {
+        this.globalError = "Failed to load token prices. Please refresh.";
+        console.error(e);
+      } finally {
+        this.loading = false;
+      }
+    },
 
-// set image src with graceful fallback
-function setIcon(imgEl, symbol) {
-  const url = iconUrl(symbol);
-  imgEl.onerror = () => { imgEL.src = fallbackIcon(symbol); };
-  imgEl.src = url;
-  imgEl.alt=`${symbol} icon`;
-}
+    // helpers
+    fmt6(n){ return Number(n||0).toFixed(6); },
+    fmt2(n){ return Number(n||0).toFixed(2); },
+    balance(sym){ return this._balances[sym] || 0; },
+    icon(sym){
+      const url = this.ICON_BASE + encodeURIComponent(sym) + ".svg";
+      // build a data-URI fallback text icon
+      const t = (sym||"?").slice(0,4);
+      const fallback = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(
+        `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>
+           <rect width='100%' height='100%' fill='#eef2ff'/>
+           <text x='50%' y='55%' font-family='Arial' font-size='10' text-anchor='middle' fill='#334155'>${t}</text>
+         </svg>`
+      );
+      // preload and return
+      const img = new Image();
+      img.src = url;
+      img.onerror = () => (img.src = fallback);
+      return img.src; // returns url now; if 404, next paint uses fallback
+    },
 
-// --- loading skeleton
-function setLoading(v){
-  loadingOverlay.classList.toggle("hidden", !v);
-  swapBtn.disabled = true;
-}
+    save(){ localStorage.setItem("swap.sel", JSON.stringify({f:this.from, t:this.to})); },
 
+    validate(){
+      this.amtError = ""; this.globalError = ""; this.canSubmit = true;
 
-// --- Load tokens and prices ---
-async function loadTokens() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
+      // amount
+      const raw = (this.amount+"").trim();
+      const val = Number(raw);
+      if (!raw)                 { this.amtError="Please enter an amount."; this.canSubmit=false; }
+      else if (!isFinite(val))  { this.amtError="Amount must be a number."; this.canSubmit=false; }
+      else if (val <= 0)        { this.amtError="Amount must be greater than 0."; this.canSubmit=false; }
+      else if (!/^\d+(\.\d{1,8})?$/.test(raw)) { this.amtError="Max 8 decimals allowed."; this.canSubmit=false; }
+      else if (val > this.balance(this.from))   { this.amtError=`Amount exceeds balance (${this.fmt6(this.balance(this.from))} ${this.from}).`; this.canSubmit=false; }
 
-    // keep the lastest seen price token
-    data.forEach(item => { prices[item.currency] = item.price });
+      // tokens
+      if (this.from === this.to) { this.globalError="From and To must be different."; this.canSubmit=false; }
+      if (!this.prices[this.from]) { this.globalError=`Missing price for ${this.from}.`; this.canSubmit=false; }
+      if (!this.prices[this.to])   { this.globalError=`Missing price for ${this.to}.`;   this.canSubmit=false; }
+    },
 
-    // mock small balances to drive UX
-    Object.keys(prices).forEach(sym => {
-      balances[sym] = 100 + Math.random() * 50; // 100–150
-    });
+    calc(){
+      const a = Number(this.amount);
+      const fp = this.prices[this.from], tp = this.prices[this.to];
+      if (!isFinite(a) || !fp || !tp){
+        this.result = ""; this.rateLine = "Rate: —"; return;
+      }
+      const usd = a * fp;
+      this.result = this.fmt6(usd / tp);
+      this.rateLine = `Rate: 1 ${this.from} ≈ ${this.fmt6(fp/tp)} ${this.to}`;
+    },
 
-    // build selects
-    const tokens = Object.keys(prices).sort();
-    tokens.forEach(t => {
-      fromTokenSelect.append(new Option(t, t));
-      toTokenSelect.append(new Option(t, t));
-    })
+    update(){
+      this.save();
+      this.validate();
+      this.calc();
+    },
 
-    // restore or defaults
-    const saved = load();
-    if (saved.f && prices[saved.f]) fromTokenSelect.value = saved.f; else if (prices.ETH) fromTokenSelect.value="ETH";
-    if (saved.t && prices[saved.t]) toTokenSelect.value = saved.t; else if (prices.USDC) toTokenSelect.value="USDC";
-    
-    updateAll();
-  } catch (e) {
-    showGlobalError("Failed to load token prices. Please refresh.");
-    console.error(e);
-  }finally{
-    setLoading(false);
-  }
-}
+    flip(){
+      const f=this.from; this.from=this.to; this.to=f;
+      if (this.result) this.amount = this.result;
+      this.update();
+    },
 
-// --- Validation helpers ---
-function clearErrors() {
-  amtError.textContent = "";
-  amtError.classList.add("hidden");
-  inputAmount.classList.remove("invalid");
+    useMax(){
+      this.amount = this.fmt6(this.balance(this.from));
+      this.update();
+    },
 
-  globalError.textContent = "";
-  globalError.classList.add("hidden");
-}
+    fromUsdHint(){
+      const a=Number(this.amount), fp=this.prices[this.from];
+      return (isFinite(a)&&fp) ? `≈ $${this.fmt2(a*fp)}` : "≈ —";
+    },
 
-function showAmtError(msg) {
-  amtError.textContent = msg;
-  amtError.classList.remove("hidden");
-  inputAmount.classList.add("invalid");
-}
+    toUsdHint(){
+      const r=Number(this.result), tp=this.prices[this.to];
+      return (isFinite(r)&&tp) ? `≈ $${this.fmt2(r*tp)}` : "≈ —";
+    },
 
-function showGlobalError(msg) {
-  globalError.textContent = msg;
-  globalError.classList.remove("hidden");
-}
+    submit(){
+      if (!this.canSubmit) return;
+      this.toastMsg = ""; this.canSubmit=false;
+      const btn = document.getElementById('swap-btn');
+      const prev = btn.textContent; btn.textContent="PROCESSING...";
+      setTimeout(()=>{
+        btn.textContent = prev; this.canSubmit=true;
+        this.toastMsg = "Swap submitted!";
+        setTimeout(()=>this.toastMsg="", 2000);
+      }, 1000);
+    },
 
-function validate() {
-  clearErrors();
-  let ok = true;
-
-  //amount validation
-  const raw = inputAmount.value.trim();
-  const amount = Number(raw);
-
-  if (raw === "") {
-    showAmtError("Please enter an amount");
-    ok = false;
-  } else if (!isFinite(amount)) {
-    showAmtError("Amount must be a number");
-    ok = false;
-  } else if (amount <= 0) {
-    showAmtError("Amount must be greater than 0.");
-    ok = false;
-  } else if (!/^\d+(\.\d{1,8})?$/.test(raw)) {
-    showAmtError("Max 8 decimals allowed.");
-    ok = false;
-  }
-
-  //token validation
-  const from = fromTokenSelect.value;
-  const to = toTokenSelect.value;
-
-  if (from === to) {
-    showGlobalError("From and To must be diffrent");
-    ok = false;
-  }
-
-  if (!prices[from]) {
-    showGlobalError(`Missing price for ${from}.`);
-  }
-
-  if (!prices[to]) {
-    showGlobalError(`Missing price for ${to}.`)
-  }
-
-  // mock balance check
-  if (ok) {
-    const bal = balances[from] || 0;
-    if (amount > bal) { 
-      showAmtError(`Amount exceeds balance (${fmt6(bal)} ${from}).`);
-      ok=false; 
-    }
-  }
-
-  swapBtn.disabled = !ok;
-  return ok;
-}
-
-// --- calculation + UI
-function updateUsdHints() {
-  const a = Number(inputAmount.value);
-  const from = fromTokenSelect.value, to = toTokenSelect.value;
-  const fromPrice = prices[from], toPrice = prices[to];
-  if (isFinite(a) && fromPrice) {
-    fromUsdEl.textContent = `≈ $${fmt2(a * fromPrice)}`; 
-  }
-  else {
-    fromUsdEl.textContent="≈ —"; 
-  }
-  const out = Number(outputAmount.value);
-
-  if (isFinite(out) && toPrice) {
-    toUsdEl.textContent = `≈ $${fmt2(out*toPrice)}`; 
-  }
-  else {
-    toUsdEl.textContent="≈ —";
-  }
-  const bal = balances[from];
-  fromBalEl.textContent = `Balance: ${bal?fmt6(bal):"—"} ${from || ""}`;
-}
-
-
-// --- Calculation + UI updates
-function calculate() {
-  const amount = Number(inputAmount.value);
-  const from = fromTokenSelect.value;
-  const to = toTokenSelect.value;
-
-  const fromPrice = prices[from];
-  const toPrice = prices[to];
-
-  if (!isFinite(amount) || !fromPrice || !toPrice) {
-    outputAmount.value = "";
-    rateEl.textContent = "Rate: —";
-    updateUsdHints();
-    return;
-  }
-  
-  const usdValue = amount * fromPrice;
-  const result = usdValue / toPrice;
-  outputAmount.value = fmt6(result);
-  rateEl.textContent = `Rate: 1 ${from} ≈ ${fmt6(fromPrice/toPrice)} ${to}}`;
-  updateUsdHints();
-}
-
-function updateIcons() {
-  const from = fromTokenSelect.value;
-  const to = toTokenSelect.value;
-  if (from) setIcon(fromIcon, from);
-  if (to) setIcon(toIcon, to);
-}
-function updateAll() {
-  updateIcons();
-  save();
-  validate();
-  calculate();
-}
-
-// --- Sumit (mock backend) ---
-swapBtn.addEventListener("click", () => {
-  if (!validate()) return;
-  
-  swapBtn.disabled = true;
-  swapBtn.textContent = "PROCESSING...";
-  toast.classList.add("hidden");
-
-  // simulate network delay
-  setTimeout(() => {
-    swapBtn.textContent = "CONFIRM SWAP";
-    swapBtn.disabled = false;
-    toast.textContent = "Swap submitted!";
-    toast.classList.remove("hidden");
-    setTimeout(() => toast.classList.add("hidden"), 2200);
-  }, 1000);
+    get resultDisplay(){ return this.result || ""; },
+  }))
 });
-
-// Swap direction
-flipBtn.addEventListener("click", ()=>{
-  const from = fromTokenSelect.value;
-  fromTokenSelect.value = toTokenSelect.value;
-  toTokenSelect.value = from;
-
-  // move numbers sensibly: set inputAmount based on previous output
-  const prevOut = outputAmount.value;
-  if (prevOut){ inputAmount.value = prevOut; }
-  updateAll();
-});
-
-// Max button (mock)
-maxBtn.addEventListener("click", ()=>{
-  const from = fromTokenSelect.value;
-  const bal = balances[from] || 0;
-  if (bal>0){ inputAmount.value = fmt6(bal); updateAll(); }
-});
-
-// --- Live updates ---
-document.getElementById("swap-form").addEventListener("input", updateAll);
-fromTokenSelect.addEventListener("change", updateAll);
-toTokenSelect.addEventListener("change", updateAll);
-
-// init
-loadTokens();
