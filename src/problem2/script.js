@@ -75,7 +75,10 @@ document.addEventListener('alpine:init', () => {
       else if (!isFinite(val))  { this.amtError="Amount must be a number."; this.canSubmit=false; }
       else if (val <= 0)        { this.amtError="Amount must be greater than 0."; this.canSubmit=false; }
       else if (!/^\d+(\.\d{1,8})?$/.test(raw)) { this.amtError="Max 8 decimals allowed."; this.canSubmit=false; }
-      else if (val > this.balance(this.from))   { this.amtError=`Amount exceeds balance (${this.fmt6(this.balance(this.from))} ${this.from}).`; this.canSubmit=false; }
+      else if (val - this.balance(this.from) > 1e-8)   { 
+        this.amtError=`Amount exceeds balance (${this.fmt6(this.balance(this.from))} ${this.from}).`; 
+        this.canSubmit=false; 
+      }
 
       // tokens
       if (this.from === this.to) { this.globalError="From and To must be different."; this.canSubmit=false; }
