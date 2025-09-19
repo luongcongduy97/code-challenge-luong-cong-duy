@@ -5,33 +5,71 @@
     <link href="style.css" rel="stylesheet" />
   </head>
   <body>
-    <form id="swap-form" onsubmit="return false">
-      <h2>Token Swap</h2>
+    <form id="swap-form" onsubmit="return false" aria-label="Token swap form">
+      <h2 class="title">Token Swap</h2>
 
-      <label for="input-amount">Amount to send</label>
-      <input id="input-amount" type="number" inputmode="decimal" min="0" step="any" placeholder="e.g. 1.5" />
-      <small id="amt-error" class="error hidden"></small>
+      <!-- FORM card -->
+      <div class="swap-card">
+        <div class="card-header">
+          <span>From</span>
+          <button type="button" id="max-btn" class="link-btn" aria-label="Use max balance">Max</button>
+        </div>
 
-      <label for="from-token">From</label>
-      <div class="token-row">
-        <img id="from-icon" class="token-icon" alt="">
-        <select id="from-token"></select>
+        <div class="row">
+          <div class="amount-box">
+            <input id="input-amount" type="number" inputmode="decimal" min="0" step="any" placeholder="0.0" aria-describedby="amt-error" />
+          </div>
+
+          <div class="token-box">
+            <img id="from-icon" class="token-icon" alt="">
+            <select id="from-token" aria-label="From token"></select>
+          </div>
+        </div>
+
+        <small id="amt-error" class="error hidden"></small>
+        <div class="subline">
+          <span id="from-balance" class="muted">Balance: -</span>
+          <span id="from-usd" class="muted">≈ —</span>
+        </div>
       </div>
 
-      <label for="to-token">To</label>
-      <div class="token-row">
-        <img id="to-icon" class="token-icon" alt="">
-        <select id="to-token"></select>
+      <!-- swap direction -->
+      <button type="button" id="flip-btn" class="flip-btn" aria-label="Swap direction">⇅</button>
+
+      <!-- TO card -->
+      <div class="swap-card">
+        <div class="card-header">
+          <span>To</span>
+        </div>
+
+        <div class="row">
+          <div class="amount-box">
+            <input id="output-amount" readonly placeholder="0.0" />
+          </div>
+
+          <div class="token-box">
+            <img id="to-icon" class="token-icon" alt="">
+            <select id="to-token" aria-label="To token"></select>
+          </div>
+        </div>
+
+        <div class="subline">
+          <span id="to-usd" class="muted">≈ —</span>
+        </div>
       </div>
 
-      <div id="global-error" class="erro hidden" role="alert"></div>
-      <div id="rate" class="hint"></div>
+      <div id="global-error" class="error hidden" role="alert"></div>
 
-      <label for="output-amount">Amount to receive</label>
-      <input id="output-amount" readonly />
+      <div class="info-line">
+        <span id="rate">Rate: —</span>
+        <span class="muted">Fee (mock): 0.30%</span>
+      </div>
 
       <button id="swap-btn" type="button" disabled>CONFIRM SWAP</button>
-      <div id="toast" class="toast hidden">Swap submitted!</div>
+      <div id="toast" class="toast hidden" role="status">Swap submitted!</div>
+
+      <!-- skeleton overlay while loading -->
+      <div id="loading" class="skeleton hidden" aria-hidden="true"></div>
     </form>
 
     <script src="script.js"></script>
