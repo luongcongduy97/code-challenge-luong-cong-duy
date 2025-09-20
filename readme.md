@@ -25,7 +25,7 @@ problem3/ → Solution for Problem 3 (Messy React)
 
 **File:** `problem1/problem1.js`
 
-**How to test:**
+---
 
 ## 📝 Problem 2
 
